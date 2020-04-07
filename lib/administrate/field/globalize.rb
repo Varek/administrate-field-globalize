@@ -8,6 +8,16 @@ module Administrate
       class Engine < ::Rails::Engine
         initializer "administrate-field-globalize.patch", before: :load_config_initializers do |app|
           Administrate::Search.class_eval do
+            def run
+              if query.blank?
+                @scoped_resource.all
+              else
+                results = search_results(@scoped_resource)
+                results = filter_results(results)
+                results.distinct
+              end
+            end
+
             def tables_to_join
               attribute_types.keys.select do |attribute|
                 attribute_types[attribute].searchable? && association_search?(attribute)
