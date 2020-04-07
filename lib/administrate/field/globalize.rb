@@ -7,6 +7,18 @@ module Administrate
     module Globalize
       class Engine < ::Rails::Engine
         initializer "administrate-field-globalize.patch", before: :load_config_initializers do |app|
+          Administrate::Field::Base.class_eval do
+            def self.translation?
+              false
+            end
+          end
+
+          Administrate::Field::Deferred.class_eval do
+            def translation?
+              options.fetch(:translation, deferred_class.translation?)
+            end
+          end
+
           Administrate::Search.class_eval do
             def run
               if query.blank?
