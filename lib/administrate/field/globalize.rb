@@ -31,35 +31,46 @@ module Administrate
             end
 
             def tables_to_join
+              tables = []
               attribute_types.keys.select do |attribute|
                 attribute_types[attribute].searchable? && association_search?(attribute)
-              end + translation_join
+              end.each do |attribute|
+                tables << if translation_search?(attribute)
+                  {attribute => :translations}
+                else
+                  attribute
+                end
+              end
+              tables + translation_join
             end
 
             def translation_join
-              return [] unless attribute_types.values.any? do |field|
-                field.respond_to?(:translation?) && field.translation?
+              if attribute_types.values.any? {|field| field.translation?}
+                [:translations]
+              else
+                []
               end
-              [:translations]
+            end
+
+            def translation_search?(attr)
+              attribute_types[attr].translation?
             end
 
             def query_table_name(attr)
-              if attribute_types[attr].respond_to?(:translation?)
-                ActiveRecord::Base.connection.
-                  quote_table_name(
-                    "#{@scoped_resource.table_name.singularize}_translations",
-                )
-              elsif association_search?(attr)
+              table_name = if association_search?(attr)
                 provided_class_name = attribute_types[attr].options[:class_name]
                 if provided_class_name
                   provided_class_name.constantize.table_name
                 else
-                  ActiveRecord::Base.connection.quote_table_name(attr.to_s.pluralize)
+                  attr.to_s.pluralize
                 end
               else
-                ActiveRecord::Base.connection.
-                  quote_table_name(@scoped_resource.table_name)
+                @scoped_resource.table_name
               end
+              if translation_search?(attr)
+                table_name = "#{table_name.singularize}_translations"
+              end
+              ActiveRecord::Base.connection.quote_table_name(table_name)
             end
           end
         end
